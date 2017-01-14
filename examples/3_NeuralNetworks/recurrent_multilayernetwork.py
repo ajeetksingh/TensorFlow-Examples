@@ -1,5 +1,5 @@
 '''
-A Bidirectional Recurrent Neural Network (LSTM) implementation example using TensorFlow library.
+A Recurrent Neural Network (LSTM) implementation example using TensorFlow library.
 This example is using the MNIST database of handwritten digits (http://yann.lecun.com/exdb/mnist/)
 Long Short Term Memory paper: http://deeplearning.cs.cmu.edu/pdfs/Hochreiter97_lstm.pdf
 
@@ -11,16 +11,15 @@ from __future__ import print_function
 
 import tensorflow as tf
 from tensorflow.python.ops import rnn, rnn_cell
-import numpy as np
-import time
+
 # Import MNIST data
 from tensorflow.examples.tutorials.mnist import input_data
 mnist = input_data.read_data_sets("/tmp/data/", one_hot=True)
 
 '''
-To classify images using a bidirectional recurrent neural network, we consider
-every image row as a sequence of pixels. Because MNIST image shape is 28*28px,
-we will then handle 28 sequences of 28 steps for every sample.
+To classify images using a recurrent neural network, we consider every image
+row as a sequence of pixels. Because MNIST image shape is 28*28px, we will then
+handle 28 sequences of 28 steps for every sample.
 '''
 
 # Parameters
@@ -34,6 +33,7 @@ n_input = 28 # MNIST data input (img shape: 28*28)
 n_steps = 28 # timesteps
 n_hidden = 128 # hidden layer num of features
 n_classes = 10 # MNIST total classes (0-9 digits)
+n_layers = 2 # Number of hidden layers
 
 # tf Graph input
 x = tf.placeholder("float", [None, n_steps, n_input])
@@ -41,45 +41,37 @@ y = tf.placeholder("float", [None, n_classes])
 
 # Define weights
 weights = {
-    # Hidden layer weights => 2*n_hidden because of forward + backward cells
-    'out': tf.Variable(tf.random_normal([2*n_hidden, n_classes]))
+    'out': tf.Variable(tf.random_normal([n_hidden, n_classes]))
 }
 biases = {
     'out': tf.Variable(tf.random_normal([n_classes]))
 }
 
 
-def BiRNN(x, weights, biases):
+def RNN(x, weights, biases):
 
-    # Prepare data shape to match `bidirectional_rnn` function requirements
+    # Prepare data shape to match `rnn` function requirements
     # Current data input shape: (batch_size, n_steps, n_input)
     # Required shape: 'n_steps' tensors list of shape (batch_size, n_input)
 
     # Permuting batch_size and n_steps
     x = tf.transpose(x, [1, 0, 2])
-    # Reshape to (n_steps*batch_size, n_input)
+    # Reshaping to (n_steps*batch_size, n_input)
     x = tf.reshape(x, [-1, n_input])
     # Split to get a list of 'n_steps' tensors of shape (batch_size, n_input)
     x = tf.split(0, n_steps, x)
 
-    # Define lstm cells with tensorflow
-    # Forward direction cell
-    lstm_fw_cell = rnn_cell.BasicLSTMCell(n_hidden, forget_bias=1.0)
-    # Backward direction cell
-    lstm_bw_cell = rnn_cell.BasicLSTMCell(n_hidden, forget_bias=1.0)
+    # Define a lstm cell with tensorflow
+    lstm_cell = rnn_cell.BasicLSTMCell(n_hidden, forget_bias=1.0)
+    lstm_cell = rnn_cell.MultiRNNCell([lstm_cell] * n_layers, state_is_tuple=True)
 
     # Get lstm cell output
-    try:
-        outputs, _, _ = rnn.bidirectional_rnn(lstm_fw_cell, lstm_bw_cell, x,
-                                              dtype=tf.float32)
-    except Exception: # Old TensorFlow version only returns outputs not states
-        outputs = rnn.bidirectional_rnn(lstm_fw_cell, lstm_bw_cell, x,
-                                        dtype=tf.float32)
+    outputs, states = rnn.rnn(lstm_cell, x, dtype=tf.float32)
 
     # Linear activation, using rnn inner loop last output
     return tf.matmul(outputs[-1], weights['out']) + biases['out']
 
-pred = BiRNN(x, weights, biases)
+pred = RNN(x, weights, biases)
 
 # Define loss and optimizer
 cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(pred, y))
@@ -93,7 +85,6 @@ accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 init = tf.initialize_all_variables()
 
 # Launch the graph
-t = time.time()
 with tf.Session() as sess:
     sess.run(init)
     step = 1
@@ -114,7 +105,7 @@ with tf.Session() as sess:
                   "{:.5f}".format(acc))
         step += 1
     print("Optimization Finished!")
-    print("Time:%f"%(time.time() - t))
+
     # Calculate accuracy for 128 mnist test images
     test_len = 128
     test_data = mnist.test.images[:test_len].reshape((-1, n_steps, n_input))

@@ -34,6 +34,7 @@ n_input = 28 # MNIST data input (img shape: 28*28)
 n_steps = 28 # timesteps
 n_hidden = 128 # hidden layer num of features
 n_classes = 10 # MNIST total classes (0-9 digits)
+n_layers = 2 # Number of Hidden Layers
 
 # tf Graph input
 x = tf.placeholder("float", [None, n_steps, n_input])
@@ -65,8 +66,10 @@ def BiRNN(x, weights, biases):
     # Define lstm cells with tensorflow
     # Forward direction cell
     lstm_fw_cell = rnn_cell.BasicLSTMCell(n_hidden, forget_bias=1.0)
+    lstm_fw_cell = rnn_cell.MultiRNNCell([lstm_fw_cell] * n_layers, state_is_tuple=True)
     # Backward direction cell
     lstm_bw_cell = rnn_cell.BasicLSTMCell(n_hidden, forget_bias=1.0)
+    lstm_bw_cell = rnn_cell.MultiRNNCell([lstm_bw_cell] * n_layers, state_is_tuple=True)
 
     # Get lstm cell output
     try:
