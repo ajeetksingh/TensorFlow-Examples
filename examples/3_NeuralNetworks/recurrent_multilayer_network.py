@@ -33,7 +33,7 @@ n_input = 28 # MNIST data input (img shape: 28*28)
 n_steps = 28 # timesteps
 n_hidden = 128 # hidden layer num of features
 n_classes = 10 # MNIST total classes (0-9 digits)
-n_layers = 2 # Number of hidden layers
+n_layers = 2 # Number of Hidden Layers
 
 # tf Graph input
 x = tf.placeholder("float", [None, n_steps, n_input])
@@ -63,6 +63,7 @@ def RNN(x, weights, biases):
 
     # Define a lstm cell with tensorflow
     lstm_cell = rnn_cell.BasicLSTMCell(n_hidden, forget_bias=1.0)
+    # Define a multilayer lstm cell
     lstm_cell = rnn_cell.MultiRNNCell([lstm_cell] * n_layers, state_is_tuple=True)
 
     # Get lstm cell output
@@ -82,7 +83,7 @@ correct_pred = tf.equal(tf.argmax(pred,1), tf.argmax(y,1))
 accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 
 # Initializing the variables
-init = tf.initialize_all_variables()
+init = tf.global_variables_initializer()
 
 # Launch the graph
 with tf.Session() as sess:
